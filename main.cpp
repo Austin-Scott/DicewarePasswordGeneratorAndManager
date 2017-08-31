@@ -12,18 +12,22 @@
 using namespace std;
 
 string generatePassphrase(vector<string> &wordlist);
+void flushCin();
 
 class PasswordDatabase {
 private:
 	vector<string> labels;
 	vector<string> passwords;
 
+	bool unsavedChanges = false;
+
 public:
 	PasswordDatabase() {
-
+		unsavedChanges = false;
 	}
 	PasswordDatabase(string decryptedFile) {
-		stringstream buffer;
+		unsavedChanges = false;
+		stringstream buffer(decryptedFile);
 		string line = "";
 		getline(buffer, line, '\n');
 		while (!buffer.eof()) {
@@ -38,6 +42,14 @@ public:
 	}
 	vector<string> getPasswords() {
 		return passwords;
+	}
+
+	bool hasUnsavedChanges() {
+		return unsavedChanges;
+	}
+
+	void flagUnsavedChanges() {
+		unsavedChanges = true;
 	}
 
 	void printCensoredEntry(int id) {
@@ -71,7 +83,60 @@ public:
 		labels.push_back(name);
 		passwords.push_back(passphrase);
 
+		unsavedChanges = true;
 		cout << "Passphrase added." << endl;
+	}
+
+	void editEntry(int id, vector<string> &wordlist) {
+		while (true) {
+			cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Cancel edit." << endl << endl;
+			int choice = 0;
+			cout << "Enter selection> ";
+			cin >> choice;
+			flushCin();
+			if (choice == 1) {
+				cout << "Please enter a new name for "+labels[id]+":" << endl;
+				string name = "";
+				getline(cin, name, '\n');
+				labels[id] = name;
+				cout << "Name changed to: " + labels[id] << endl;
+				unsavedChanges = true;
+				break;
+			}
+			else if (choice == 2) {
+				cout << "Changing passphrase for " + labels[id]+"..." << endl;
+				passwords[id] = generatePassphrase(wordlist);
+				cout << "Passphrase changed." << endl;
+				unsavedChanges = true;
+				break;
+			}
+			else if (choice == 3) {
+				cout << "Are you sure you want to delete " + labels[id] + "? (yes/no)" << endl;
+				
+				
+				
+					string input = "";
+					getline(cin, input);
+					if (input == "yes") {
+						labels[id] = labels.back();
+						passwords[id] = passwords.back();
+						labels.pop_back();
+						passwords.pop_back();
+						cout << "Entry deleted." << endl;
+						unsavedChanges = true;
+						break;
+					}
+					
+				
+			}
+			else if (choice == 4) {
+
+				break;
+			}
+			else {
+				cout << "Error: invalid choice. Please try again." << endl;
+			}
+		}
 	}
 };
 
@@ -82,6 +147,7 @@ int toInt(string value) {
 	buffer >> result;
 	return result;
 }
+
 
 int searchForEntry(PasswordDatabase &db) {
 	string input = "";
@@ -301,6 +367,7 @@ string toHex(uint32_t num) {
 	stringstream buffer;
 	buffer << hex << num;
 	string result(buffer.str());
+	cout << dec;
 	return result;
 }
 
@@ -328,11 +395,44 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, s
 	}
 	data = encryptDecrypt(data, key, passphrase);
 
-	ofstream passwordFile(filename, ofstream::out);
-	passwordFile << data;
+	ofstream passwordFile(filename, ofstream::out | ofstream::binary);
+	//passwordFile << data;
+	passwordFile.write(data.c_str(), sizeof(char)*data.size());
 	passwordFile.close();
 
 	cout << "Done. " << endl;
+}
+
+void changeKeyPass(PasswordDatabase &db, uint32_t &key, string &passphrase, vector<string> &wordlist) {
+	while (true) {
+		cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Cancel." << endl << endl;
+		int choice = 0;
+		cout << "Enter selection> ";
+		cin >> choice;
+		flushCin();
+		if (choice == 1) {
+			cout << "Changing key..." << endl;
+			key = generateNewKey();
+			cout << "Your new key is: " + toHex(key) << endl;
+			cout << "Do not lose this!!" << endl;
+			db.flagUnsavedChanges();
+			break;
+		}
+		else if (choice == 2) {
+			cout << "Changing passphrase..." << endl;
+			passphrase = generatePassphrase(wordlist);
+			cout << "Passphrase changed! Do not lose the new passphrase!!!" << endl;
+			db.flagUnsavedChanges();
+			break;
+		}
+		else if (choice == 3) {
+			break;
+
+		}
+		else {
+			cout << "Error: invalid choice. Please try again." << endl;
+		}
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -341,7 +441,7 @@ int main(int argc, char* argv[]) {
 	string nameOfPasswords = "passwords.txt";
 
 	vector<string> wordlist;
-	stringstream encryptedPasswordsData;
+	string encryptedPasswordsData;
 
 	PasswordDatabase db;
 	uint32_t key = 0;
@@ -378,7 +478,7 @@ int main(int argc, char* argv[]) {
 	wordListFile.close();
 
 	ifstream passwordsFile;
-	passwordsFile.open(nameOfPasswords);
+	passwordsFile.open(nameOfPasswords, ios::binary);
 	if (!passwordsFile) {
 		cout << "Unable to open passwords file. Entering first time setup." << endl;
 		cout << "Creating key..." << endl;
@@ -405,8 +505,12 @@ int main(int argc, char* argv[]) {
 		cout << "Password database created." << endl;
 	}
 	else {
-		encryptedPasswordsData << passwordsFile.rdbuf();
-		string decrypted=decryptFile(db, key, passphrase, encryptedPasswordsData.str());
+		//encryptedPasswordsData << passwordsFile.rdbuf();
+
+		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
+			(istreambuf_iterator<char>()));
+
+		string decrypted=decryptFile(db, key, passphrase, encryptedPasswordsData);
 		passwordsFile.close();
 		db = PasswordDatabase(decrypted);
 	}
@@ -418,7 +522,13 @@ int main(int argc, char* argv[]) {
 
 	bool keeplooping = true;
 	while (keeplooping) {
-		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database key/passphrase.\n\t5. Quit" << endl << endl;
+		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database key/passphrase.\n\t5. Save and Quit" << endl;
+		if (db.hasUnsavedChanges()) {
+			cout << "***WARNING: You have unsaved changes." << endl;
+		}
+		else {
+			cout << endl;
+		}
 		int choice = 0;
 		cout << "Choose option: ";
 		cin >> choice;
@@ -434,10 +544,12 @@ int main(int argc, char* argv[]) {
 			db.printEntry(selection);
 			break;
 		case 3:
-
+			selection = searchForEntry(db);
+			if (selection == -1) break;
+			db.editEntry(selection, wordlist);
 			break;
 		case 4:
-
+			changeKeyPass(db, key, passphrase, wordlist);
 			break;
 		case 5:
 			writeAndEncryptFile(db, key, passphrase, nameOfPasswords);
