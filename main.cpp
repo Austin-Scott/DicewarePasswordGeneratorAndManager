@@ -295,8 +295,10 @@ void seedGenerator(uint32_t seed) {
 string encryptDecrypt(string data, uint32_t key, string passphrase) {
 	string result = data;
 	seedGenerator(key);
-	for (int i = 0; i < data.length(); i++) {
-		result[i] ^= passphrase[random() % passphrase.length()];
+	if (passphrase.length() != 0) {
+		for (int i = 0; i < data.length(); i++) {
+			result[i] ^= passphrase[random() % passphrase.length()];
+		}
 	}
 	return result;
 }
