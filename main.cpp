@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -6,6 +8,8 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <stdio.h>
+#include <time.h>
 
 #include <conio.h>
 
@@ -13,11 +17,14 @@ using namespace std;
 
 string generatePassphrase(vector<string> &wordlist);
 void flushCin();
+string getCurrentDateTime();
 
 class PasswordDatabase {
 private:
 	vector<string> labels;
 	vector<string> passwords;
+	vector<string> dates;
+	vector<string> notes;
 
 	bool unsavedChanges = false;
 
@@ -35,6 +42,10 @@ public:
 			labels.push_back(line);
 			getline(buffer, line, '\n');
 			passwords.push_back(line);
+			getline(buffer, line, '\n');
+			dates.push_back(line);
+			getline(buffer, line, '\n');
+			notes.push_back(line);
 		}
 	}
 	vector<string> getLabels() {
@@ -42,6 +53,12 @@ public:
 	}
 	vector<string> getPasswords() {
 		return passwords;
+	}
+	vector<string> getDates() {
+		return dates;
+	}
+	vector<string> getNotes() {
+		return notes;
 	}
 
 	bool hasUnsavedChanges() {
@@ -72,6 +89,10 @@ public:
 	void printEntry(int id) {
 		cout << labels[id] << ": " << endl;
 		cout << "\t" << passwords[id] << endl;
+		cout << "Password created at:" << endl;
+		cout << "\t" << dates[id] << endl;
+		cout << "Notes:" << endl;
+		cout << "\t" << notes[id] << endl;
 	}
 
 	void addNewPassphrase(vector<string> &wordlist) {
@@ -83,13 +104,17 @@ public:
 		labels.push_back(name);
 		passwords.push_back(passphrase);
 
+		notes.emplace_back();
+
+		dates.push_back(getCurrentDateTime());
+
 		unsavedChanges = true;
 		cout << "Passphrase added." << endl;
 	}
 
 	void editEntry(int id, vector<string> &wordlist) {
 		while (true) {
-			cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Cancel edit." << endl << endl;
+			cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Edit password notes\n\t5. Cancel edit." << endl << endl;
 			int choice = 0;
 			cout << "Enter selection> ";
 			cin >> choice;
@@ -101,12 +126,14 @@ public:
 				labels[id] = name;
 				cout << "Name changed to: " + labels[id] << endl;
 				unsavedChanges = true;
+				
 				break;
 			}
 			else if (choice == 2) {
 				cout << "Changing passphrase for " + labels[id]+"..." << endl;
 				passwords[id] = generatePassphrase(wordlist);
 				cout << "Passphrase changed." << endl;
+				dates[id] = getCurrentDateTime();
 				unsavedChanges = true;
 				break;
 			}
@@ -130,6 +157,14 @@ public:
 				
 			}
 			else if (choice == 4) {
+				cout << "Editing notes for " << labels[id] << "..." << endl;
+				cout << "Previously, the notes for this passphrase were:" << endl << notes[id] << endl;
+				cout << "Enter new line of notes now:" << endl;
+				string notes;
+				getline(cin, notes, '\n');
+				cout << "Notes updated." << endl;
+			}
+			else if (choice == 5) {
 
 				break;
 			}
@@ -139,6 +174,17 @@ public:
 		}
 	}
 };
+
+string getCurrentDateTime() {
+	char buffer[80];
+	time_t raw;
+	struct tm * timeinfo;
+	time(&raw);
+	timeinfo = localtime(&raw);
+	strftime(buffer, 80, "%B %e %Y %I:%M:%S %p", timeinfo);
+	string result = string(buffer);
+	return result;
+}
 
 int toInt(string value) {
 	stringstream buffer;
@@ -306,6 +352,16 @@ string generatePassphrase(vector<string> &wordlist) {
 	result += append;
 	cout << "Done. Your new passphrase is:" << endl;
 	cout << result << endl;
+	cout << endl << endl << "-Statistics for this passphrase-" << endl;
+	double totalPossibleWordCombos = pow(wordlist.size(), words);
+	cout << "Current wordlist is " << wordlist.size() << " words long." << endl;
+	cout << "Based of passphrase length and size of your wordlist total possible passphrases:" << endl << totalPossibleWordCombos << endl;
+	cout << "Assuming your adversary is capable of a trillion guesses per second and they know your wordlist, length of passphrase, and any characters you added to the end-\nAverage time needed to crack this passphrase in years:" << endl;
+	double guessesPerYear = 1000000000000.0*60.0*60.0*24.0*365.0;
+	double maxYearsToGuess = totalPossibleWordCombos / guessesPerYear;
+	double averageYearsToGuess = maxYearsToGuess / 2.0;
+	cout << "About " << averageYearsToGuess << " years. Heat death of the universe in about 1x10^100 years." << endl;
+
 	cout << "Press enter to continue...";
 	while (_getch() != 0x0D);
 	cout << endl;
@@ -391,6 +447,8 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, s
 	for (int i = 0; i < db.getLabels().size(); i++) {
 		data += db.getLabels()[i] + "\n";
 		data += db.getPasswords()[i];
+		data += db.getDates()[i];
+		data += db.getNotes()[i];
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
 	data = encryptDecrypt(data, key, passphrase);
