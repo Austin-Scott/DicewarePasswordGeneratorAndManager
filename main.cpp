@@ -147,8 +147,12 @@ public:
 					if (input == "yes") {
 						labels[id] = labels.back();
 						passwords[id] = passwords.back();
+						dates[id] = dates.back();
+						notes[id] = notes.back();
 						labels.pop_back();
 						passwords.pop_back();
+						dates.pop_back();
+						notes.pop_back();
 						cout << "Entry deleted." << endl;
 						unsavedChanges = true;
 						break;
