@@ -448,8 +448,8 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, s
 	string data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
 	for (int i = 0; i < db.getLabels().size(); i++) {
 		data += db.getLabels()[i] + "\n";
-		data += db.getPasswords()[i];
-		data += db.getDates()[i];
+		data += db.getPasswords()[i] + "\n";
+		data += db.getDates()[i]+"\n";
 		data += db.getNotes()[i];
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
