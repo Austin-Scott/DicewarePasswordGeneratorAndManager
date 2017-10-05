@@ -36,7 +36,6 @@ public:
 		unsavedChanges = false;
 		stringstream buffer(decryptedFile);
 		string line = "";
-		getline(buffer, line, '\n');
 		while (!buffer.eof()) {
 			getline(buffer, line, '\n');
 			labels.push_back(line);
@@ -164,9 +163,12 @@ public:
 				cout << "Editing notes for " << labels[id] << "..." << endl;
 				cout << "Previously, the notes for this passphrase were:" << endl << notes[id] << endl;
 				cout << "Enter new line of notes now:" << endl;
-				string notes;
-				getline(cin, notes, '\n');
+				string noteString;
+				getline(cin, noteString, '\n');
+				notes[id] = noteString;
 				cout << "Notes updated." << endl;
+				unsavedChanges = true;
+				break;
 			}
 			else if (choice == 5) {
 
@@ -433,14 +435,25 @@ string toHex(uint32_t num) {
 	return result;
 }
 
-string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, string encryptedData) {
+string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, uint32_t checksum, string encryptedData) {
 	string result = "";
+	uint32_t computedsum = 0;
 	while (true) {
 		key = getKeyFromUser();
 		passphrase = getPassphraseFromUser();
 		cout << "Decrypting file..." << endl;
 		result=encryptDecrypt(encryptedData, key, passphrase);
-		if (result.substr(0, 26) == "ABCDEFGHIJKLMNOPQRSTUVWXYZ") break; //success
+
+		computedsum = 0;
+		for (int i = 0; i < result.length(); i++) {
+			computedsum += result[i];
+		}
+
+		if (computedsum==checksum) {
+			break; //success
+		}
+
+
 		cout << "Error: incorrect key or passphrase. Please try again." << endl;
 	}
 	cout << "Decryption successful." << endl;
@@ -449,7 +462,9 @@ string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, stri
 
 void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, string filename) {
 	cout << "Saving and encrypting file..." << endl;
-	string data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n";
+
+	string data = "";
+
 	for (int i = 0; i < db.getLabels().size(); i++) {
 		data += db.getLabels()[i] + "\n";
 		data += db.getPasswords()[i] + "\n";
@@ -457,10 +472,17 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, s
 		data += db.getNotes()[i];
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
+
+	uint32_t checksum = 0;
+	for (int i = 0; i < data.length(); i++) {
+		checksum += data[i];
+	}
+
 	data = encryptDecrypt(data, key, passphrase);
 
 	ofstream passwordFile(filename, ofstream::out | ofstream::binary);
-	//passwordFile << data;
+	
+	passwordFile.write((char*)&checksum, sizeof(uint32_t));
 	passwordFile.write(data.c_str(), sizeof(char)*data.size());
 	passwordFile.close();
 
@@ -543,6 +565,7 @@ int main(int argc, char* argv[]) {
 
 	ifstream passwordsFile;
 	passwordsFile.open(nameOfPasswords, ios::binary);
+
 	if (!passwordsFile) {
 		cout << "Unable to open passwords file. Entering first time setup." << endl;
 		cout << "Creating key..." << endl;
@@ -551,12 +574,14 @@ int main(int argc, char* argv[]) {
 		passphrase = generatePassphrase(wordlist);
 		cout << "Passphrase created." << endl
 			<< endl << "-----------------------------" << endl
-			<< "KEY: " << setw(8) << setfill('0') << right << hex << key << endl
-			<< "PASSPHRASE: " << passphrase << endl
+			<< "KEY: " << setw(8) << setfill('0') << right << hex << key << endl;
+		cout << dec;
+		cout<< "PASSPHRASE: " << passphrase << endl
 			<< "-----------------------------" << endl << endl
 			<< "***NOTE: These are required to access your passwords." << endl
 			<< "Recovery of any password is not possible if you lose these." << endl
 			<< "Type \"yes\" if you acknowledge this notice: ";
+
 		flushCin();
 		while (true) {
 			string input = "";
@@ -569,18 +594,19 @@ int main(int argc, char* argv[]) {
 		cout << "Password database created." << endl;
 	}
 	else {
-		//encryptedPasswordsData << passwordsFile.rdbuf();
+		uint32_t checksum = 0;
+		passwordsFile.read((char *)&checksum, sizeof(uint32_t));
 
 		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
 			(istreambuf_iterator<char>()));
 
-		string decrypted=decryptFile(db, key, passphrase, encryptedPasswordsData);
+		string decrypted=decryptFile(db, key, passphrase, checksum, encryptedPasswordsData);
 		passwordsFile.close();
 		db = PasswordDatabase(decrypted);
 	}
 	
 	cout << endl;
-	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.0";
+	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.1";
 	printBox(greeting);
 	cout << endl;
 
@@ -624,4 +650,5 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	return 0;
 }
