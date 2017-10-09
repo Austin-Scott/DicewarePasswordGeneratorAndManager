@@ -12,6 +12,8 @@
 #include <time.h>
 #include <random>
 
+#include "picosha2.h"
+
 #ifdef _WIN32 //If the current operating system is Windows
 	#include <conio.h>
 	#include <Windows.h>
@@ -51,6 +53,10 @@ string getCurrentDateTime();
 void printBox(string value);
 void editString(string &stringToEdit);
 uint32_t getKeyFromUser();
+string saltString(string str, uint32_t salt);
+char getByte(uint32_t from, int index);
+
+string hashString(string str);
 
 class PasswordDatabase {
 private:
@@ -356,12 +362,27 @@ void seedGenerator(uint32_t seed) {
 	nextSeed = seed;
 }
 
-string encryptDecrypt(string data, uint32_t key, string passphrase) {
+bool getBit(char from, int index) { //index starts at zero as the least significant bit
+	return (from >> index) & 0x1;
+}
+
+void xorSetBit(char &to, bool value, int index) { //index starts at zero as the least significant bit
+	to ^= (value << index);
+}
+
+string encryptDecrypt(string data, uint32_t salt, uint32_t key, string passphrase) {
+	string saltedPassphrase = saltString(passphrase, salt);
+	string hashedPassphrase = hashString(saltedPassphrase);
+
 	string result = data;
 	seedGenerator(key);
 	if (passphrase.length() != 0) {
-		for (int i = 0; i < data.length(); i++) {
-			result[i] ^= passphrase[random() % passphrase.length()];
+		for (int i = 0; i < result.length(); i++) { //For every byte in data
+			for (int j = 0; j < 8; j++) { //For every bit in each byte
+				int currentHashByte = random() % 32;
+				int currentHashBit = random() % 8;
+				xorSetBit(result[i], getBit(hashedPassphrase[currentHashByte], currentHashBit), j);
+			}
 		}
 	}
 	return result;
@@ -372,7 +393,7 @@ void flushCin() {
 	cin.ignore(INT_MAX, '\n');
 }
 
-uint32_t generateNewKey() {
+uint32_t generateNewKey(string name) {
 	uint32_t result = 0;
 
 	int selection = 0;
@@ -381,7 +402,7 @@ uint32_t generateNewKey() {
 	cout << "New source of entropy required." << endl;
 	while (true) {
 		
-		cout << "What method would you like to use to create the key?\n\n"
+		cout << "What method would you like to use to create the "<<name<<"?\n\n"
 			<< "\t1. Hardware based true random number generator (if available)\n"
 			<< "\t2. Random keyboard input\n"
 			<< "\t3. Other (manual entry of a random key in hex)\n"
@@ -593,7 +614,7 @@ string generatePassphrase(vector<string> &wordlist) {
 	else {
 
 		//Passphrase generation method: PRNG
-		seedGenerator(generateNewKey());
+		seedGenerator(generateNewKey("seed"));
 		for (int i = 0; i < words; i++) {
 			result += wordlist[random() % wordlist.size()];
 			if (i < words - 1 || !append.empty()) result += " ";
@@ -675,6 +696,29 @@ uint32_t getKeyFromUser() {
 	return result;
 }
 
+string saltString(string str, uint32_t salt)
+{
+	string result = str;
+	for (int i = 0; i < result.length(); i++) {
+		result[i] ^= getByte(salt, i % 4);
+	}
+	return result;
+}
+
+char getByte(uint32_t from, int index) //index starts at zero at the least significant byte
+{
+	return (from >> (index * 8)) & 0xff;
+}
+
+string hashString(string str)
+{
+	vector<char> hash(32);
+	picosha2::hash256(str.begin(), str.end(), hash.begin(), hash.end());
+	string result = "";
+	for (int i = 0; i < 32; i++) result += hash[i];
+	return result;
+}
+
 string getPassphraseFromUser() {
 	string result;
 	cout << "Please enter your passphrase>";
@@ -706,32 +750,32 @@ string toHex(uint32_t num) {
 	return result;
 }
 
-string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, uint32_t checksum, string encryptedData) {
+string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, uint32_t salt, string hash, string encryptedData) {
 	string result = "";
-	uint32_t computedsum = 0;
-	while (true) {
+	string saltedResult = "";
+	
+	bool stillEncrypted = true;
+	while (stillEncrypted) {
 		key = getKeyFromUser();
 		passphrase = getPassphraseFromUser();
 		cout << "Decrypting file..." << endl;
-		result=encryptDecrypt(encryptedData, key, passphrase);
+		result=encryptDecrypt(encryptedData, salt, key, passphrase);
 
-		computedsum = 0;
-		for (int i = 0; i < result.length(); i++) {
-			computedsum += result[i];
+		saltedResult = saltString(result, salt);
+
+
+		if (hash==hashString(saltedResult)) {
+			stillEncrypted=false; //success
 		}
-
-		if (computedsum==checksum) {
-			break; //success
+		else {
+			cout << "Error: incorrect key or passphrase. Please try again." << endl;
 		}
-
-
-		cout << "Error: incorrect key or passphrase. Please try again." << endl;
 	}
 	cout << "Decryption successful." << endl;
 	return result;
 }
 
-void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, string filename) {
+void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, string passphrase, string filename) {
 	cout << "Saving and encrypting file..." << endl;
 
 	string data = "";
@@ -744,32 +788,31 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, string passphrase, s
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
 
-	uint32_t checksum = 0;
-	for (int i = 0; i < data.length(); i++) {
-		checksum += data[i];
-	}
+	string saltedData = saltString(data, salt);
+	string hash = hashString(saltedData);
 
-	data = encryptDecrypt(data, key, passphrase);
+	data = encryptDecrypt(data, salt, key, passphrase);
 
 	ofstream passwordFile(filename, ofstream::out | ofstream::binary);
 	
-	passwordFile.write((char*)&checksum, sizeof(uint32_t));
+	passwordFile.write((char *)&salt, sizeof(uint32_t));
+	passwordFile.write(hash.c_str(), sizeof(char)*32);
 	passwordFile.write(data.c_str(), sizeof(char)*data.size());
 	passwordFile.close();
 
 	cout << "Done. " << endl;
 }
 
-void changeKeyPass(PasswordDatabase &db, uint32_t &key, string &passphrase, vector<string> &wordlist) {
+void changeKeyPass(PasswordDatabase &db, uint32_t &salt, uint32_t &key, string &passphrase, vector<string> &wordlist) {
 	while (true) {
-		cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Cancel." << endl << endl;
+		cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Change salt.\n\t4. Cancel." << endl << endl;
 		int choice = 0;
 		cout << "Enter selection>";
 		cin >> choice;
 		flushCin();
 		if (choice == 1) {
 			cout << "Changing key..." << endl;
-			key = generateNewKey();
+			key = generateNewKey("key");
 			cout << "Your new key is: " + toHex(key) << endl;
 			cout << "Do not lose this!!" << endl;
 			db.flagUnsavedChanges();
@@ -784,8 +827,14 @@ void changeKeyPass(PasswordDatabase &db, uint32_t &key, string &passphrase, vect
 			break;
 		}
 		else if (choice == 3) {
+			cout << "Changing salt..." << endl;
+			salt = generateNewKey("salt");
+			cout << "Salt changed!" << endl;
 			break;
 
+		}
+		else if (choice == 4) {
+			break;
 		}
 		else {
 			cout << "Error: invalid choice. Please try again." << endl;
@@ -803,6 +852,7 @@ int main(int argc, char* argv[]) {
 
 	PasswordDatabase db;
 	uint32_t key = 0;
+	uint32_t salt = 0;
 	string passphrase = "";
 
 	if (argc == 1) {
@@ -840,8 +890,13 @@ int main(int argc, char* argv[]) {
 
 	if (!passwordsFile) {
 		cout << "Unable to open passwords file. Entering first time setup." << endl;
-		cout << "Creating key..." << endl;
-		key = generateNewKey();
+
+		cout << "Creating random salt..." << endl;
+		salt = generateNewKey("salt");
+
+		cout << "Done creating random salt. Creating key..." << endl;
+		key = generateNewKey("key");
+
 		cout << "Done creating key. Creating passphrase..." << endl;
 		passphrase = generatePassphrase(wordlist);
 		cout << "Passphrase created." << endl
@@ -862,32 +917,46 @@ int main(int argc, char* argv[]) {
 			cout << "You must type \"yes\" and agree to the notice to continue using this software." << endl
 				<< "Type \"yes\" if you acknowledge this notice: ";
 		}
-		writeAndEncryptFile(db, key, passphrase, nameOfPasswords);
+		//We must have at least one entry in the database before we save it now
+		//writeAndEncryptFile(db, key, salt, passphrase, nameOfPasswords);
 		cout << "Password database created." << endl;
 	}
 	else {
-		uint32_t checksum = 0;
-		passwordsFile.read((char *)&checksum, sizeof(uint32_t));
+		passwordsFile.read((char *)&salt, sizeof(uint32_t));
+
+		char rawHash[32];
+		passwordsFile.read(rawHash, sizeof(char)*32);
+		string hash = "";
+		for (int i = 0; i < 32; i++) hash += rawHash[i];
 
 		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
 			(istreambuf_iterator<char>()));
 
-		string decrypted=decryptFile(db, key, passphrase, checksum, encryptedPasswordsData);
+		string decrypted=decryptFile(db, key, passphrase, salt, hash, encryptedPasswordsData);
 		passwordsFile.close();
 		db = PasswordDatabase(decrypted);
 	}
 	
 	cout << endl;
-	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.2";
+	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.3";
 	printBox(greeting);
 	cout << endl;
 
 	bool keeplooping = true;
 	while (keeplooping) {
-		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database key/passphrase.\n\t5. Save and Quit" << endl;
-		if (db.hasUnsavedChanges()) {
+		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database key/passphrase.\n\t5. ";
+		if (db.getLabels().size() > 0) {
+			cout << "Save and ";
+		}
+		cout << "Quit" << endl;
+		
+		if (db.getLabels().size() == 0) {
+			cout << "***NOTE: You must have at least one passphrase before you may save the database." << endl;
+		}
+		else if (db.hasUnsavedChanges()) {
 			cout << "***WARNING: You have unsaved changes." << endl;
 		}
+		
 		else {
 			cout << endl;
 		}
@@ -911,10 +980,15 @@ int main(int argc, char* argv[]) {
 			db.editEntry(selection, wordlist);
 			break;
 		case 4:
-			changeKeyPass(db, key, passphrase, wordlist);
+			changeKeyPass(db, salt, key, passphrase, wordlist);
 			break;
 		case 5:
-			writeAndEncryptFile(db, key, passphrase, nameOfPasswords);
+			if (db.getLabels().size() > 0) {
+				writeAndEncryptFile(db, key, salt, passphrase, nameOfPasswords);
+			}
+			else {
+				cout << "Exiting without saving..." << endl;
+			}
 			keeplooping = false;
 			break;
 		default:
