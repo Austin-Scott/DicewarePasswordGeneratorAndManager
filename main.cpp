@@ -13,17 +13,20 @@
 #include <random>
 
 #include "picosha2.h"
+#include "PasswordDatabase.h"
+
+using namespace std;
 
 #ifdef _WIN32 //If the current operating system is Windows
 	#include <conio.h>
 	#include <Windows.h>
-	void toClipboard(const std::string &s) { //Modified from: http://www.cplusplus.com/forum/general/48837/
+	void toClipboard(const string &s) { //Modified from: http://www.cplusplus.com/forum/general/48837/
 		OpenClipboard(GetDesktopWindow());
 		EmptyClipboard();
 		HGLOBAL hg = GlobalAlloc(0x0002, s.size() + 1);
 		if (!hg) {
 			CloseClipboard();
-			std::cout << "Error: Clipboard operation failed." << std::endl;
+			cout << "Error: Clipboard operation failed." << endl;
 			return;
 		}
 		memcpy(GlobalLock(hg), s.c_str(), s.size() + 1);
@@ -32,197 +35,18 @@
 		CloseClipboard();
 		GlobalFree(hg);
 		if (s.length() > 0) {
-			std::cout << "Successfully copied to clipboard." << std::endl;
+			cout << "Successfully copied to clipboard." << endl;
 		}
 		else {
-			std::cout << "Clipboard contents erased." << std::endl;
+			cout << "Clipboard contents erased." << endl;
 		}
 	}
 #else
-	void toClipboard(const std::string &s) {
-		std::cout << "This program does not support clipboards on your platform." << std::endl;
+	void toClipboard(const string &s) {
+		cout << "This program does not support clipboards on your platform." << endl;
 	}
 	//TODO: _getch() still needs a default replacement based on platform independent code
 #endif
-
-using namespace std;
-
-string generatePassphrase(vector<string> &wordlist);
-void flushCin();
-string getCurrentDateTime();
-void printBox(string value);
-void editString(string &stringToEdit);
-uint32_t getKeyFromUser();
-string saltString(string str, uint32_t salt);
-char getByte(uint32_t from, int index);
-
-string hashString(string str);
-
-class PasswordDatabase {
-private:
-	vector<string> labels;
-	vector<string> passwords;
-	vector<string> dates;
-	vector<string> notes;
-
-	bool unsavedChanges = false;
-
-public:
-	PasswordDatabase() {
-		unsavedChanges = false;
-	}
-	PasswordDatabase(string decryptedFile) {
-		unsavedChanges = false;
-		stringstream buffer(decryptedFile);
-		string line = "";
-		while (!buffer.eof()) {
-			getline(buffer, line, '\n');
-			labels.push_back(line);
-			getline(buffer, line, '\n');
-			passwords.push_back(line);
-			getline(buffer, line, '\n');
-			dates.push_back(line);
-			getline(buffer, line, '\n');
-			notes.push_back(line);
-		}
-	}
-	vector<string> getLabels() {
-		return labels;
-	}
-	vector<string> getPasswords() {
-		return passwords;
-	}
-	vector<string> getDates() {
-		return dates;
-	}
-	vector<string> getNotes() {
-		return notes;
-	}
-
-	bool hasUnsavedChanges() {
-		return unsavedChanges;
-	}
-
-	void flagUnsavedChanges() {
-		unsavedChanges = true;
-	}
-
-	void printCensoredEntry(int id) {
-		/*
-		cout << labels[id] << ": " << endl;
-		string temp = passwords[id];
-		bool afterSpace = true;
-		for (int i = 0; i < temp.length(); i++) {
-			if (temp[i] != ' ' && !afterSpace) temp[i] = '*';
-			else if (temp[i] != ' ') {
-				afterSpace = false;
-			}
-			else {
-				temp[i] = '_';
-				afterSpace = true;
-			}
-		}
-		cout << "\t" << temp << endl;
-		*/
-
-		cout << labels[id] << " (" << dates[id] << ")" << endl;
-	}
-
-	void printEntry(int id) {
-
-		string content = "---Password for " + labels[id] + "---\n\n     "
-			+ passwords[id]
-			+ "     \n\n---Password creation time stamp---\n\n     "
-			+ dates[id]
-			+ "     \n\n---Notes---\n\n     "
-			+ notes[id]
-			+ "     \n";
-		cout << endl;
-		printBox(content);
-		cout << endl;
-
-	}
-
-	void addNewPassphrase(vector<string> &wordlist) {
-		cout << "What is the name of the site this passphrase is for?>" << endl;
-		string name = "";
-		getline(cin, name, '\n');
-		string passphrase = generatePassphrase(wordlist);
-
-		labels.push_back(name);
-		passwords.push_back(passphrase);
-
-		notes.emplace_back("This passphrase has no notes.");
-
-		dates.push_back(getCurrentDateTime());
-
-		unsavedChanges = true;
-		cout << "Passphrase added." << endl;
-	}
-
-	void editEntry(int id, vector<string> &wordlist) {
-		while (true) {
-			cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Edit password notes\n\t5. Cancel edit." << endl << endl;
-			int choice = 0;
-			cout << "Enter selection> ";
-			cin >> choice;
-			flushCin();
-			if (choice == 1) {
-				cout << "Please enter a new name for "+labels[id]+">" << endl;
-				editString(labels[id]);
-				cout << "Name changed to: " + labels[id] << endl;
-				unsavedChanges = true;
-				
-				break;
-			}
-			else if (choice == 2) {
-				cout << "Changing passphrase for " + labels[id]+"..." << endl;
-				passwords[id] = generatePassphrase(wordlist);
-				cout << "Passphrase changed." << endl;
-				dates[id] = getCurrentDateTime();
-				unsavedChanges = true;
-				break;
-			}
-			else if (choice == 3) {
-				cout << "Are you sure you want to delete " + labels[id] + "? (yes/no)" << endl;
-				
-				
-				
-					string input = "";
-					getline(cin, input);
-					if (input == "yes") {
-						labels[id] = labels.back();
-						passwords[id] = passwords.back();
-						dates[id] = dates.back();
-						notes[id] = notes.back();
-						labels.pop_back();
-						passwords.pop_back();
-						dates.pop_back();
-						notes.pop_back();
-						cout << "Entry deleted." << endl;
-						unsavedChanges = true;
-						break;
-					}
-					
-				
-			}
-			else if (choice == 4) {
-				cout << "Editing notes for "<<labels[id]<<">" << endl;
-				editString(notes[id]);
-				cout << "Notes updated." << endl;
-				unsavedChanges = true;
-				break;
-			}
-			else if (choice == 5) {
-
-				break;
-			}
-			else {
-				cout << "Error: invalid choice. Please try again." << endl;
-			}
-		}
-	}
-};
 
 string getCurrentDateTime() {
 	char buffer[80];
