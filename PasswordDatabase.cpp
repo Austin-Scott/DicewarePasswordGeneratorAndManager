@@ -1,13 +1,14 @@
 #include "PasswordDatabase.h"
 
+
 PasswordDatabase::PasswordDatabase() {
 	unsavedChanges = false;
 }
 
-PasswordDatabase::PasswordDatabase(string decryptedFile) {
+PasswordDatabase::PasswordDatabase(std::string decryptedFile) {
 	unsavedChanges = false;
 	stringstream buffer(decryptedFile);
-	string line = "";
+	std::string line = "";
 	while (!buffer.eof()) {
 		getline(buffer, line, '\n');
 		labels.push_back(line);
@@ -20,19 +21,19 @@ PasswordDatabase::PasswordDatabase(string decryptedFile) {
 	}
 }
 
-vector<string> PasswordDatabase::getLabels() {
+vector<std::string> PasswordDatabase::getLabels() {
 	return labels;
 }
 
-vector<string> PasswordDatabase::getPasswords() {
+vector<std::string> PasswordDatabase::getPasswords() {
 	return passwords;
 }
 
-vector<string> PasswordDatabase::getDates() {
+vector<std::string> PasswordDatabase::getDates() {
 	return dates;
 }
 
-vector<string> PasswordDatabase::getNotes() {
+vector<std::string> PasswordDatabase::getNotes() {
 	return notes;
 }
 
@@ -51,7 +52,7 @@ void PasswordDatabase::printCensoredEntry(int id) {
 
 void PasswordDatabase::printEntry(int id) {
 
-	string content = "---Password for " + labels[id] + "---\n\n     "
+	std::string content = "---Password for " + labels[id] + "---\n\n     "
 		+ passwords[id]
 		+ "     \n\n---Password creation time stamp---\n\n     "
 		+ dates[id]
@@ -64,11 +65,11 @@ void PasswordDatabase::printEntry(int id) {
 
 }
 
-void PasswordDatabase::addNewPassphrase(vector<string>& wordlist) {
+void PasswordDatabase::addNewPassphrase(vector<std::string>& wordlist) {
 	cout << "What is the name of the site this passphrase is for?>" << endl;
-	string name = "";
+	std::string name = "";
 	getline(cin, name, '\n');
-	string passphrase = generatePassphrase(wordlist);
+	std::string passphrase = generatePassphrase(wordlist);
 
 	labels.push_back(name);
 	passwords.push_back(passphrase);
@@ -81,7 +82,7 @@ void PasswordDatabase::addNewPassphrase(vector<string>& wordlist) {
 	cout << "Passphrase added." << endl;
 }
 
-void PasswordDatabase::editEntry(int id, vector<string>& wordlist) {
+void PasswordDatabase::editEntry(int id, vector<std::string>& wordlist) {
 	while (true) {
 		cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Edit password notes\n\t5. Cancel edit." << endl << endl;
 		int choice = 0;
@@ -109,7 +110,7 @@ void PasswordDatabase::editEntry(int id, vector<string>& wordlist) {
 
 
 
-			string input = "";
+			std::string input = "";
 			getline(cin, input);
 			if (input == "yes") {
 				labels[id] = labels.back();
