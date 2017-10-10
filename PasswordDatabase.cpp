@@ -7,7 +7,7 @@ PasswordDatabase::PasswordDatabase() {
 
 PasswordDatabase::PasswordDatabase(std::string decryptedFile) {
 	unsavedChanges = false;
-	stringstream buffer(decryptedFile);
+	std::stringstream buffer(decryptedFile);
 	std::string line = "";
 	while (!buffer.eof()) {
 		getline(buffer, line, '\n');
@@ -21,19 +21,19 @@ PasswordDatabase::PasswordDatabase(std::string decryptedFile) {
 	}
 }
 
-vector<std::string> PasswordDatabase::getLabels() {
+std::vector<std::string> PasswordDatabase::getLabels() {
 	return labels;
 }
 
-vector<std::string> PasswordDatabase::getPasswords() {
+std::vector<std::string> PasswordDatabase::getPasswords() {
 	return passwords;
 }
 
-vector<std::string> PasswordDatabase::getDates() {
+std::vector<std::string> PasswordDatabase::getDates() {
 	return dates;
 }
 
-vector<std::string> PasswordDatabase::getNotes() {
+std::vector<std::string> PasswordDatabase::getNotes() {
 	return notes;
 }
 
@@ -47,7 +47,7 @@ void PasswordDatabase::flagUnsavedChanges() {
 
 void PasswordDatabase::printCensoredEntry(int id) {
 
-	cout << labels[id] << " (" << dates[id] << ")" << endl;
+	std::cout << labels[id] << " (" << dates[id] << ")" << std::endl;
 }
 
 void PasswordDatabase::printEntry(int id) {
@@ -59,16 +59,16 @@ void PasswordDatabase::printEntry(int id) {
 		+ "     \n\n---Notes---\n\n     "
 		+ notes[id]
 		+ "     \n";
-	cout << endl;
+	std::cout << std::endl;
 	printBox(content);
-	cout << endl;
+	std::cout << std::endl;
 
 }
 
-void PasswordDatabase::addNewPassphrase(vector<std::string>& wordlist) {
-	cout << "What is the name of the site this passphrase is for?>" << endl;
+void PasswordDatabase::addNewPassphrase(std::vector<std::string>& wordlist) {
+	std::cout << "What is the name of the site this passphrase is for?>" << std::endl;
 	std::string name = "";
-	getline(cin, name, '\n');
+	getline(std::cin, name, '\n');
 	std::string passphrase = generatePassphrase(wordlist);
 
 	labels.push_back(name);
@@ -79,34 +79,34 @@ void PasswordDatabase::addNewPassphrase(vector<std::string>& wordlist) {
 	dates.push_back(getCurrentDateTime());
 
 	unsavedChanges = true;
-	cout << "Passphrase added." << endl;
+	std::cout << "Passphrase added." << std::endl;
 }
 
-void PasswordDatabase::editEntry(int id, vector<std::string>& wordlist) {
+void PasswordDatabase::editEntry(int id, std::vector<std::string>& wordlist) {
 	while (true) {
-		cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Edit password notes\n\t5. Cancel edit." << endl << endl;
+		std::cout << "Edit options for " + labels[id] + ":\n\t1. Change label.\n\t2. Change passphrase.\n\t3. Delete entry.\n\t4. Edit password notes\n\t5. Cancel edit." << std::endl << std::endl;
 		int choice = 0;
-		cout << "Enter selection> ";
+		std::cout << "Enter selection> ";
 		cin >> choice;
 		flushCin();
 		if (choice == 1) {
-			cout << "Please enter a new name for " + labels[id] + ">" << endl;
+			std::cout << "Please enter a new name for " + labels[id] + ">" << std::endl;
 			editString(labels[id]);
-			cout << "Name changed to: " + labels[id] << endl;
+			std::cout << "Name changed to: " + labels[id] << std::endl;
 			unsavedChanges = true;
 
 			break;
 		}
 		else if (choice == 2) {
-			cout << "Changing passphrase for " + labels[id] + "..." << endl;
+			std::cout << "Changing passphrase for " + labels[id] + "..." << std::endl;
 			passwords[id] = generatePassphrase(wordlist);
-			cout << "Passphrase changed." << endl;
+			std::cout << "Passphrase changed." << std::endl;
 			dates[id] = getCurrentDateTime();
 			unsavedChanges = true;
 			break;
 		}
 		else if (choice == 3) {
-			cout << "Are you sure you want to delete " + labels[id] + "? (yes/no)" << endl;
+			std::cout << "Are you sure you want to delete " + labels[id] + "? (yes/no)" << std::endl;
 
 
 
@@ -121,7 +121,7 @@ void PasswordDatabase::editEntry(int id, vector<std::string>& wordlist) {
 				passwords.pop_back();
 				dates.pop_back();
 				notes.pop_back();
-				cout << "Entry deleted." << endl;
+				std::cout << "Entry deleted." << std::endl;
 				unsavedChanges = true;
 				break;
 			}
@@ -129,9 +129,9 @@ void PasswordDatabase::editEntry(int id, vector<std::string>& wordlist) {
 
 		}
 		else if (choice == 4) {
-			cout << "Editing notes for " << labels[id] << ">" << endl;
+			std::cout << "Editing notes for " << labels[id] << ">" << std::endl;
 			editString(notes[id]);
-			cout << "Notes updated." << endl;
+			std::cout << "Notes updated." << std::endl;
 			unsavedChanges = true;
 			break;
 		}
@@ -140,7 +140,7 @@ void PasswordDatabase::editEntry(int id, vector<std::string>& wordlist) {
 			break;
 		}
 		else {
-			cout << "Error: invalid choice. Please try again." << endl;
+			std::cout << "Error: invalid choice. Please try again." << std::endl;
 		}
 	}
 }

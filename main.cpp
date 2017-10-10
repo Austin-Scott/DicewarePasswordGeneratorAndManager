@@ -1,26 +1,17 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <sstream>
-#include <iomanip>
-#include <cmath>
-#include <stdio.h>
-#include <time.h>
-#include <random>
 
 #include "picosha2.h"
 
-using namespace std;
-
-#include "Utils.h"
 #include "PasswordDatabase.h"
+#include "Utils.h"
 #include "Encryption.h"
 #include "Application.h"
 
+using namespace std;
 
 int main(int argc, char* argv[]) {
 

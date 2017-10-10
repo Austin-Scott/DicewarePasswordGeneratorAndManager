@@ -1,59 +1,59 @@
 #include "Application.h"
 
-string generatePassphrase(vector<string>& wordlist) {
-	string result = "";
-	string append = "";
+std::string generatePassphrase(std::vector<std::string>& wordlist) {
+	std::string result = "";
+	std::string append = "";
 	int words = 0;
 	while (true) {
-		cout << "How many words should the passphrase be?>";
-		cin >> words;
+		std::cout << "How many words should the passphrase be?>";
+		std::cin >> words;
 		if (words > 0) break;
-		cout << "Error: number of words must be greater than zero. Try again." << endl;
+		std::cout << "Error: number of words must be greater than zero. Try again." << std::endl;
 	}
-	cout << "Do you wish to append any special characters to the end of your passphrase? (y/n)";
+	std::cout << "Do you wish to append any special characters to the end of your passphrase? (y/n)";
 	if (_getch() == 0x79) {
-		cout << endl << "Please add any characters you would like to append to your passphrase>" << endl;
-		cin >> append;
+		std::cout << std::endl << "Please add any characters you would like to append to your passphrase>" << std::endl;
+		std::cin >> append;
 	}
-	cout << endl;
+	std::cout << std::endl;
 
 	int selection = 0;
-	random_device rd;
+	std::random_device rd;
 
 	while (true) {
 		flushCin();
-		cout << "What method would you like to use to generate your passphrase?\n\n"
+		std::cout << "What method would you like to use to generate your passphrase?\n\n"
 			<< "\t1. Hardware based true random number generator (if available)\n"
 			<< "\t2. Real-world dice\n"
 			<< "\t3. Other (manual entry of ranged random numbers)\n"
 			<< "\t4. Pseudo-random number generator (not recommended)\n\n";
 
-		cout << "Choose option>";
-		cin >> selection;
+		std::cout << "Choose option>";
+		std::cin >> selection;
 		if (selection >= 1 && selection <= 4) {
 			if (selection == 1) { //Check if TRNG even exists
 				if (rd.entropy() > 0) { //TRNG exists on users machine
-					cout << "TRNG detected. Continuing..." << endl;
+					std::cout << "TRNG detected. Continuing..." << std::endl;
 					break;
 				}
 				else {
-					cout << "Unfortunately, your device does not support hardware based random number generation." << endl
-						<< "Please choose a different option." << endl;
+					std::cout << "Unfortunately, your device does not support hardware based random number generation." << std::endl
+						<< "Please choose a different option." << std::endl;
 				}
 			}
 			else {
-				cout << endl;
+				std::cout << std::endl;
 				break;
 			}
 		}
 		else {
-			cout << "Error: invalid choice. Please try again." << endl;
+			std::cout << "Error: invalid choice. Please try again." << std::endl;
 		}
 	}
 
 	if (selection == 1) {
 
-		uniform_int_distribution<int> dist(0, wordlist.size() - 1);
+		std::uniform_int_distribution<int> dist(0, wordlist.size() - 1);
 		for (int i = 0; i < words; i++) {
 			result += wordlist[dist(rd)];
 			if (i < words - 1 || !append.empty()) result += " ";
@@ -63,7 +63,7 @@ string generatePassphrase(vector<string>& wordlist) {
 	else if (selection == 2) {
 
 		for (int i = 0; i < words; i++) {
-			cout << "Selecting word (" << (i + 1) << "/" << words << ")..." << endl;
+			std::cout << "Selecting word (" << (i + 1) << "/" << words << ")..." << std::endl;
 			result += wordlist[getRandomNumberFromDie(wordlist.size())];
 			if (i < words - 1 || !append.empty()) result += " ";
 		}
@@ -73,16 +73,16 @@ string generatePassphrase(vector<string>& wordlist) {
 
 		for (int i = 0; i < words; i++) {
 			flushCin();
-			cout << "Selecting word (" << (i + 1) << "/" << words << ")..." << endl;
+			std::cout << "Selecting word (" << (i + 1) << "/" << words << ")..." << std::endl;
 			int input = 0;
-			cout << "Enter a random number inclusively between 1 and " << wordlist.size() << ">";
-			cin >> input;
+			std::cout << "Enter a random number inclusively between 1 and " << wordlist.size() << ">";
+			std::cin >> input;
 			if (input >= 1 && input <= wordlist.size()) {
 				result += wordlist[input - 1];
 				if (i < words - 1 || !append.empty()) result += " ";
 			}
 			else {
-				cout << "Error: invalid input. Please try again." << endl;
+				std::cout << "Error: invalid input. Please try again." << std::endl;
 				i--;
 			}
 		}
@@ -102,123 +102,123 @@ string generatePassphrase(vector<string>& wordlist) {
 
 	result += append;
 
-	cout << endl << "Copying generated passphrase to your clipboard..." << endl;
+	std::cout << std::endl << "Copying generated passphrase to your clipboard..." << std::endl;
 	toClipboard(result);
 
-	cout << endl << "-Statistics for this passphrase-" << endl;
+	std::cout << std::endl << "-Statistics for this passphrase-" << std::endl;
 	double totalPossibleWordCombos = pow(wordlist.size(), words);
-	cout << "Current wordlist is " << wordlist.size() << " words long." << endl;
-	cout << "Based of passphrase length and size of your wordlist total possible passphrases:" << endl << totalPossibleWordCombos << endl;
-	cout << "Assuming your adversary is capable of a trillion guesses per second and they know your wordlist, length of passphrase, and any characters you added to the end-\nAverage time needed to crack this passphrase in years:" << endl;
+	std::cout << "Current wordlist is " << wordlist.size() << " words long." << std::endl;
+	std::cout << "Based of passphrase length and size of your wordlist total possible passphrases:" << std::endl << totalPossibleWordCombos << std::endl;
+	std::cout << "Assuming your adversary is capable of a trillion guesses per second and they know your wordlist, length of passphrase, and any characters you added to the end-\nAverage time needed to crack this passphrase in years:" << std::endl;
 	double guessesPerYear = 1000000000000.0*60.0*60.0*24.0*365.0;
 	double maxYearsToGuess = totalPossibleWordCombos / guessesPerYear;
 	double averageYearsToGuess = maxYearsToGuess / 2.0;
-	cout << "About " << averageYearsToGuess << " years. Heat death of the universe in about 1x10^100 years." << endl;
+	std::cout << "About " << averageYearsToGuess << " years. Heat death of the universe in about 1x10^100 years." << std::endl;
 
-	cout << endl << "Press enter to continue...";
+	std::cout << std::endl << "Press enter to continue...";
 	while (_getch() != 0x0D);
-	cout << endl << endl;
-	cout << "Clearing passphrase from your clipboard..." << endl;
-	string empty = "";
+	std::cout << std::endl << std::endl;
+	std::cout << "Clearing passphrase from your clipboard..." << std::endl;
+	std::string empty = "";
 	toClipboard(empty);
-	cout << endl;
+	std::cout << std::endl;
 	return result;
 }
 
-int searchForEntry(PasswordDatabase & db) {
-	string input = "";
+int searchForEntry(PasswordDatabase &db) {
+	std::string input = "";
 	int numOfResults = 0;
-	vector<int> matchedResultIDs;
+	std::vector<int> matchedResultIDs;
 	while (true) {
 		numOfResults = 0;
 		matchedResultIDs.clear();
-		cout << "Please enter search term>";
-		getline(cin, input);
+		std::cout << "Please enter search term>";
+		getline(std::cin, input);
 		for (int i = 0; i < db.getLabels().size(); i++) {
-			if (db.getLabels()[i].find(input) != string::npos) {
+			if (db.getLabels()[i].find(input) != std::string::npos) {
 				numOfResults++;
 				matchedResultIDs.push_back(i);
 			}
 		}
 		if (numOfResults > 0) {
-			cout << numOfResults << " result/s found:" << endl;
+			std::cout << numOfResults << " result/s found:" << std::endl;
 			break;
 		}
 		else {
-			cout << "No results were found. Would you like to try again? (Y/N)";
-			getline(cin, input);
+			std::cout << "No results were found. Would you like to try again? (Y/N)";
+			getline(std::cin, input);
 			if (input != "Y") return -1;
-			cout << endl;
+			std::cout << std::endl;
 		}
 	}
 	for (int i = 0; i < matchedResultIDs.size(); i++) {
-		cout << "\t" << (i + 1) << ". ";
+		std::cout << "\t" << (i + 1) << ". ";
 		db.printCensoredEntry(matchedResultIDs[i]);
 	}
 	while (true) {
-		cout << endl << "Please select an entry>";
-		getline(cin, input);
+		std::cout << std::endl << "Please select an entry>";
+		getline(std::cin, input);
 		if (toInt(input) >= 1 && toInt(input) <= matchedResultIDs.size()) {
 			return matchedResultIDs[toInt(input) - 1];
 		}
 		else {
-			cout << "Error: Invalid input. Please try again." << endl;
+			std::cout << "Error: Invalid input. Please try again." << std::endl;
 		}
 	}
 }
 
-uint32_t generateNewKey(string name) {
+uint32_t generateNewKey(std::string name) {
 	uint32_t result = 0;
 
 	int selection = 0;
-	random_device rd;
+	std::random_device rd;
 
-	cout << "New source of entropy required." << endl;
+	std::cout << "New source of entropy required." << std::endl;
 	while (true) {
 
-		cout << "What method would you like to use to create the " << name << "?\n\n"
+		std::cout << "What method would you like to use to create the " << name << "?\n\n"
 			<< "\t1. Hardware based true random number generator (if available)\n"
 			<< "\t2. Random keyboard input\n"
 			<< "\t3. Other (manual entry of a random key in hex)\n"
 			<< "\t4. Current system time (not recommended)\n\n";
 
-		cout << "Choose option>";
-		cin >> selection;
+		std::cout << "Choose option>";
+		std::cin >> selection;
 		if (selection >= 1 && selection <= 4) {
 			if (selection == 1) { //Check if TRNG even exists
 				if (rd.entropy() > 0) { //TRNG exists on users machine
-					cout << "TRNG detected. Continuing..." << endl;
+					std::cout << "TRNG detected. Continuing..." << std::endl;
 					break;
 				}
 				else {
-					cout << "Unfortunately, your device does not support hardware based random number generation." << endl
-						<< "Please choose a different option." << endl;
+					std::cout << "Unfortunately, your device does not support hardware based random number generation." << std::endl
+						<< "Please choose a different option." << std::endl;
 				}
 			}
 			else {
-				cout << endl;
+				std::cout << std::endl;
 				break;
 			}
 		}
 		else {
-			cout << "Error: invalid choice. Please try again." << endl;
+			std::cout << "Error: invalid choice. Please try again." << std::endl;
 		}
 		flushCin();
 	}
 
 	if (selection == 1) {
 
-		cout << "Getting key from TRNG..." << endl;
-		uniform_int_distribution<uint32_t> dist(0U, 4294967295U);
+		std::cout << "Getting key from TRNG..." << std::endl;
+		std::uniform_int_distribution<uint32_t> dist(0U, 4294967295U);
 		result = dist(rd);
-		cout << "...Key retrieved." << endl;
+		std::cout << "...Key retrieved." << std::endl;
 
 	}
 	else if (selection == 2) {
 
-		cout << "Please start pressing random characters on your keyboard" << endl;
+		std::cout << "Please start pressing random characters on your keyboard" << std::endl;
 		for (int i = 0; i < 32; i++) {
-			cout << (32 - i) << " random characters remaining...";
+			std::cout << (32 - i) << " random characters remaining...";
 			char c = _getch();
 			if (c % 2 == 0) {
 				result += 0;
@@ -227,21 +227,21 @@ uint32_t generateNewKey(string name) {
 				result += 1;
 			}
 			result = result << 1;
-			cout << endl;
+			std::cout << std::endl;
 		}
-		cout << "Done. Press enter to continue...";
+		std::cout << "Done. Press enter to continue...";
 		while (_getch() != 0x0D);
-		cout << endl;
+		std::cout << std::endl;
 
 	}
 	else if (selection == 3) {
-		cout << "Please enter a random 8 digit hexadecimal number:" << endl;
+		std::cout << "Please enter a random 8 digit hexadecimal number:" << std::endl;
 		result = getKeyFromUser();
 	}
 	else {
-		cout << "Getting key from current system time..." << endl;
+		std::cout << "Getting key from current system time..." << std::endl;
 		result = time(NULL);
-		cout << "...key retrieved." << endl;
+		std::cout << "...key retrieved." << std::endl;
 	}
 
 	return result;
@@ -257,7 +257,7 @@ int getRandomNumberFromDie(int max) { //Number in range [0,max)
 	while (true) {
 		result = 0;
 		for (int i = 0; i < rollsPerNumber; i++) {
-			cout << "Please toss a die and record the result(" << (i + 1) << "/" << rollsPerNumber << ")>";
+			std::cout << "Please toss a die and record the result(" << (i + 1) << "/" << rollsPerNumber << ")>";
 			c = _getch();
 			if (c >= 0x31 && c <= 0x36) {
 				switch (c) {
@@ -280,15 +280,15 @@ int getRandomNumberFromDie(int max) { //Number in range [0,max)
 					result += 5 * (int)pow(6, i);
 					break;
 				}
-				cout << endl;
+				std::cout << std::endl;
 			}
 			else {
-				cout << endl << "Error. Invalid input. Please try again." << endl;
+				std::cout << std::endl << "Error. Invalid input. Please try again." << std::endl;
 				i--;
 			}
 		}
 		if (result >= maxUsableNumber) {
-			cout << "Note: repeating die rolling process for current word. Number created wasn't in usable range." << endl;
+			std::cout << "Note: repeating die rolling process for current word. Number created wasn't in usable range." << std::endl;
 		}
 		else {
 			break;
@@ -298,10 +298,10 @@ int getRandomNumberFromDie(int max) { //Number in range [0,max)
 }
 
 uint32_t getKeyFromUser() {
-	string input;
+	std::string input;
 	bool keepLooping = true;
 	while (keepLooping) {
-		cout << "Please enter your key>";
+		std::cout << "Please enter your key>";
 		input = "";
 		for (int i = 0; i < 8; i++) {
 			char c = _getch();
@@ -310,23 +310,23 @@ uint32_t getKeyFromUser() {
 				if (input.length() > 0) {
 					input.pop_back();
 					i--;
-					cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
+					std::cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
 				}
 				i--;
 			}
 			else if (c < 48 || (c > 57 && c < 97) || c>102) {
 				//if invalid character has been entered
-				cout << endl << "Error: invalid character entered. Please try again." << endl;
+				std::cout << std::endl << "Error: invalid character entered. Please try again." << std::endl;
 				break;
 			}
 			else {
-				cout << "*";
+				std::cout << "*";
 				input += c;
 			}
 			if (i == 7) keepLooping = false;
 		}
 	}
-	cout << endl;
+	std::cout << std::endl;
 	uint32_t result = 0;
 	for (int i = 7; i >= 0; i--) {
 		int n = 0;
@@ -345,9 +345,9 @@ uint32_t getKeyFromUser() {
 	return result;
 }
 
-string getPassphraseFromUser() {
-	string result;
-	cout << "Please enter your passphrase>";
+std::string getPassphraseFromUser() {
+	std::string result;
+	std::cout << "Please enter your passphrase>";
 	char c = 0;
 	while (true) {
 		c = _getch();
@@ -356,27 +356,27 @@ string getPassphraseFromUser() {
 		else if (c == 0x8) { //Backspace pressed
 			if (result.length() > 0) {
 				result.pop_back();
-				cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
+				std::cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
 			}
 		}
 		else {
-			cout << "*";
+			std::cout << "*";
 			result += c;
 		}
 	}
-	cout << endl;
+	std::cout << std::endl;
 	return result;
 }
 
-string decryptFile(PasswordDatabase & db, uint32_t & key, string & passphrase, uint32_t salt, string hash, string encryptedData) {
-	string result = "";
-	string saltedResult = "";
+std::string decryptFile(PasswordDatabase & db, uint32_t & key, std::string & passphrase, uint32_t salt, std::string hash, std::string encryptedData) {
+	std::string result = "";
+	std::string saltedResult = "";
 
 	bool stillEncrypted = true;
 	while (stillEncrypted) {
 		key = getKeyFromUser();
 		passphrase = getPassphraseFromUser();
-		cout << "Decrypting file..." << endl;
+		std::cout << "Decrypting file..." << std::endl;
 		result = encryptDecrypt(encryptedData, salt, key, passphrase);
 
 		saltedResult = saltString(result, salt);
@@ -386,17 +386,17 @@ string decryptFile(PasswordDatabase & db, uint32_t & key, string & passphrase, u
 			stillEncrypted = false; //success
 		}
 		else {
-			cout << "Error: incorrect key or passphrase. Please try again." << endl;
+			std::cout << "Error: incorrect key or passphrase. Please try again." << std::endl;
 		}
 	}
-	cout << "Decryption successful." << endl;
+	std::cout << "Decryption successful." << std::endl;
 	return result;
 }
 
-void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, string passphrase, string filename) {
-	cout << "Saving and encrypting file..." << endl;
+void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, std::string passphrase, std::string filename) {
+	std::cout << "Saving and encrypting file..." << std::endl;
 
-	string data = "";
+	std::string data = "";
 
 	for (int i = 0; i < db.getLabels().size(); i++) {
 		data += db.getLabels()[i] + "\n";
@@ -406,8 +406,8 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, strin
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
 
-	string saltedData = saltString(data, salt);
-	string hash = hashString(saltedData);
+	std::string saltedData = saltString(data, salt);
+	std::string hash = hashString(saltedData);
 
 	data = encryptDecrypt(data, salt, key, passphrase);
 
@@ -418,36 +418,36 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, strin
 	passwordFile.write(data.c_str(), sizeof(char)*data.size());
 	passwordFile.close();
 
-	cout << "Done. " << endl;
+	std::cout << "Done. " << std::endl;
 }
 
-void changeKeyPass(PasswordDatabase & db, uint32_t & salt, uint32_t & key, string & passphrase, vector<string>& wordlist) {
+void changeKeyPass(PasswordDatabase & db, uint32_t & salt, uint32_t & key, std::string & passphrase, std::vector<std::string>& wordlist) {
 	while (true) {
-		cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Change salt.\n\t4. Cancel." << endl << endl;
+		std::cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Change salt.\n\t4. Cancel." << std::endl << std::endl;
 		int choice = 0;
-		cout << "Enter selection>";
-		cin >> choice;
+		std::cout << "Enter selection>";
+		std::cin >> choice;
 		flushCin();
 		if (choice == 1) {
-			cout << "Changing key..." << endl;
+			std::cout << "Changing key..." << std::endl;
 			key = generateNewKey("key");
-			cout << "Your new key is: " + toHex(key) << endl;
-			cout << "Do not lose this!!" << endl;
+			std::cout << "Your new key is: " + toHex(key) << std::endl;
+			std::cout << "Do not lose this!!" << std::endl;
 			db.flagUnsavedChanges();
 			break;
 		}
 		else if (choice == 2) {
-			cout << "Changing passphrase..." << endl;
+			std::cout << "Changing passphrase..." << std::endl;
 			passphrase = generatePassphrase(wordlist);
-			cout << "Passphrase changed! Do not lose this: \n"
-				<< passphrase << endl;
+			std::cout << "Passphrase changed! Do not lose this: \n"
+				<< passphrase << std::endl;
 			db.flagUnsavedChanges();
 			break;
 		}
 		else if (choice == 3) {
-			cout << "Changing salt..." << endl;
+			std::cout << "Changing salt..." << std::endl;
 			salt = generateNewKey("salt");
-			cout << "Salt changed!" << endl;
+			std::cout << "Salt changed!" << std::endl;
 			break;
 
 		}
@@ -455,7 +455,7 @@ void changeKeyPass(PasswordDatabase & db, uint32_t & salt, uint32_t & key, strin
 			break;
 		}
 		else {
-			cout << "Error: invalid choice. Please try again." << endl;
+			std::cout << "Error: invalid choice. Please try again." << std::endl;
 		}
 	}
 }

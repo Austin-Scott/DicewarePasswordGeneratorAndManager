@@ -1,35 +1,63 @@
 #include "Utils.h"
 
-int toInt(string value) {
-	stringstream buffer;
+#ifdef _WIN32
+	void toClipboard(const std::string & s) { //Modified from: http://www.cplusplus.com/forum/general/48837/
+		OpenClipboard(GetDesktopWindow());
+		EmptyClipboard();
+		HGLOBAL hg = GlobalAlloc(0x0002, s.size() + 1);
+		if (!hg) {
+			CloseClipboard();
+			std::cout << "Error: Clipboard operation failed." << std::endl;
+			return;
+		}
+		memcpy(GlobalLock(hg), s.c_str(), s.size() + 1);
+		GlobalUnlock(hg);
+		SetClipboardData(1, hg);
+		CloseClipboard();
+		GlobalFree(hg);
+		if (s.length() > 0) {
+			std::cout << "Successfully copied to clipboard." << std::endl;
+		}
+		else {
+			std::cout << "Clipboard contents erased." << std::endl;
+		}
+	}
+#else
+	void toClipboard(const std::string &s) {
+		std::cout << "This program does not support clipboards on your platform." << std::endl;
+	}
+#endif
+
+int toInt(std::string value) {
+	std::stringstream buffer;
 	buffer << value;
 	int result;
 	buffer >> result;
 	return result;
 }
 
-void editString(string & stringToEdit) {
-	cout << stringToEdit;
+void editString(std::string & stringToEdit) {
+	std::cout << stringToEdit;
 	while (true) {
 		char c = _getch();
 		if (c == 0xD) { //If enter is pressed stop editing
-			cout << endl;
+			std::cout << std::endl;
 			break;
 		}
 		else if (c == 0x8) { //If backspace is pressed
 			if (stringToEdit.length() > 0) {
 				stringToEdit.pop_back();
-				cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
+				std::cout << "\b \b"; //Move the cursor back one, overwrite star with space, then move back again
 			}
 		}
-		else if (c >= 0x20 && c <= 0x7E) { //If printable character is typed add to end of string
+		else if (c >= 0x20 && c <= 0x7E) { //If printable character is typed add to end of std::string
 			stringToEdit += c;
-			cout << c;
+			std::cout << c;
 		}
 	}
 }
 
-void printBox(string value) {
+void printBox(std::string value) {
 	const char topLeft = 201;
 	const char topRight = 187;
 	const char bottomLeft = 200;
@@ -37,40 +65,40 @@ void printBox(string value) {
 	const char topBottom = 205;
 	const char leftRight = 186;
 
-	stringstream buffer;
+	std::stringstream buffer;
 	buffer << value;
-	vector<string> lines;
+	std::vector<std::string> lines;
 	while (!buffer.eof()) {
-		string line = "";
+		std::string line = "";
 		getline(buffer, line);
 		lines.push_back(line);
 	}
 
 	int maxLength = 0;
-	for (string s : lines) {
+	for (std::string s : lines) {
 		if (s.length() > maxLength) maxLength = s.length();
 	}
 
-	string floor = "";
+	std::string floor = "";
 	floor.assign(maxLength, topBottom);
 
-	string top = "";
+	std::string top = "";
 	top.push_back(topLeft);
 	top += floor;
 	top.push_back(topRight);
 
-	cout << top << endl;
+	std::cout << top << std::endl;
 
-	for (string s : lines) {
-		cout << leftRight << setw(maxLength) << setfill(' ') << left << s << leftRight << endl;
+	for (std::string s : lines) {
+		std::cout << leftRight << std::setw(maxLength) << std::setfill(' ') << std::left << s << leftRight << std::endl;
 	}
 
-	string bottom = "";
+	std::string bottom = "";
 	bottom.push_back(bottomLeft);
 	bottom += floor;
 	bottom.push_back(bottomRight);
 
-	cout << bottom << endl;
+	std::cout << bottom << std::endl;
 
 }
 
@@ -97,14 +125,25 @@ char getByte(uint32_t from, int index) //index starts at zero at the least signi
 }
 
 void flushCin() {
-	cin.clear();
-	cin.ignore(INT_MAX, '\n');
+	std::cin.clear();
+	std::cin.ignore(INT_MAX, '\n');
 }
 
-string toHex(uint32_t num) {
-	stringstream buffer;
-	buffer << hex << num;
-	string result(buffer.str());
-	cout << dec;
+std::string toHex(uint32_t num) {
+	std::stringstream buffer;
+	buffer << std::hex << num;
+	std::string result(buffer.str());
+	std::cout << std::dec;
+	return result;
+}
+
+std::string getCurrentDateTime() {
+	char buffer[80];
+	time_t raw;
+	struct tm * timeinfo;
+	time(&raw);
+	timeinfo = localtime(&raw);
+	strftime(buffer, 80, "%B %e %Y %I:%M:%S %p", timeinfo);
+	std::string result = std::string(buffer);
 	return result;
 }

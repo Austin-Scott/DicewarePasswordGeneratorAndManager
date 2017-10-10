@@ -8,20 +8,20 @@ Application.h - for functions that are used for user interaction in the applicat
 #include <cstdint>
 #include <random>
 #include <fstream>
+#include <vector>
 
-#include "Utils.h"
 #include "PasswordDatabase.h"
 #include "Encryption.h"
 
-using namespace std;
+class PasswordDatabase;
 
-string generatePassphrase(vector<string> &wordlist);
+std::string generatePassphrase(std::vector<std::string>& wordlist);
 int searchForEntry(PasswordDatabase &db);
-uint32_t generateNewKey(string name);
+uint32_t generateNewKey(std::string name);
 int getRandomNumberFromDie(int max);
 uint32_t getKeyFromUser();
-string getPassphraseFromUser();
-string decryptFile(PasswordDatabase &db, uint32_t &key, string &passphrase, uint32_t salt, string hash, string encryptedData);
-void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, string passphrase, string filename);
-void changeKeyPass(PasswordDatabase &db, uint32_t &salt, uint32_t &key, string &passphrase, vector<string> &wordlist);
+std::string getPassphraseFromUser();
+std::string decryptFile(PasswordDatabase &db, uint32_t &key, std::string &passphrase, uint32_t salt, std::string hash, std::string encryptedData);
+void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, std::string passphrase, std::string filename);
+void changeKeyPass(PasswordDatabase &db, uint32_t &salt, uint32_t &key, std::string &passphrase, std::vector<std::string> &wordlist);
 
