@@ -5,19 +5,22 @@ PasswordDatabase::PasswordDatabase() {
 	unsavedChanges = false;
 }
 
-PasswordDatabase::PasswordDatabase(std::string decryptedFile) {
+PasswordDatabase::PasswordDatabase(std::string decryptedFile, uint32_t version) {
 	unsavedChanges = false;
 	std::stringstream buffer(decryptedFile);
 	std::string line = "";
-	while (!buffer.eof()) {
-		getline(buffer, line, '\n');
-		labels.push_back(line);
-		getline(buffer, line, '\n');
-		passwords.push_back(line);
-		getline(buffer, line, '\n');
-		dates.push_back(line);
-		getline(buffer, line, '\n');
-		notes.push_back(line);
+
+	if (version >= 5) {
+		while (!buffer.eof()) {
+			getline(buffer, line, '\n');
+			labels.push_back(line);
+			getline(buffer, line, '\n');
+			passwords.push_back(line);
+			getline(buffer, line, '\n');
+			dates.push_back(line);
+			getline(buffer, line, '\n');
+			notes.push_back(line);
+		}
 	}
 }
 

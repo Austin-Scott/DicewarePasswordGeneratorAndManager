@@ -22,7 +22,7 @@ int getRandomNumberFromDie(int max);
 uint32_t getKeyFromUser();
 std::string getPassphraseFromUser();
 std::string decryptFile(PasswordDatabase &db, std::string &passphrase, uint32_t salt, unsigned char* nonce, std::string encryptedData);
-void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename);
+void writeAndEncryptFile(PasswordDatabase db, const uint32_t currentVersion, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename);
 void changePassphrase(PasswordDatabase &db, uint32_t &salt, std::string &passphrase, std::vector<std::string> &wordlist);
 bool parseCmdArguments(int argc, char **argv, std::string &nameOfWordList, std::string &nameOfPasswords);
 bool loadWordlist(std::string nameOfWordList, std::vector<std::string> &wordlist);

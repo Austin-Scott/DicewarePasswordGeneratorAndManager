@@ -387,7 +387,7 @@ std::string decryptFile(PasswordDatabase &db, std::string &passphrase, uint32_t 
 	return result;
 }
 
-void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename) {
+void writeAndEncryptFile(PasswordDatabase db, const uint32_t currentVersion, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename) {
 	std::cout << "Saving and encrypting file..." << std::endl;
 
 	std::string data = "";
@@ -404,6 +404,7 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonc
 
 	ofstream passwordFile(filename, ofstream::out | ofstream::binary);
 
+	passwordFile.write((char *)&currentVersion, sizeof(uint32_t));
 	passwordFile.write((char *)&salt, sizeof(uint32_t));
 	passwordFile.write((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 	passwordFile.write(data.c_str(), sizeof(char)*data.size());

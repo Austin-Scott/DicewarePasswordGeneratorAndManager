@@ -16,7 +16,7 @@ private:
 	bool unsavedChanges = false;
 public:
 	PasswordDatabase();
-	PasswordDatabase(std::string decryptedFile);
+	PasswordDatabase(std::string decryptedFile, uint32_t version);
 	std::vector<std::string> getLabels();
 	std::vector<std::string> getPasswords();
 	std::vector<std::string> getDates();

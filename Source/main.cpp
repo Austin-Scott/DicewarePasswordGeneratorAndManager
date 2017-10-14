@@ -38,6 +38,12 @@ int main(int argc, char* argv[]) {
 	unsigned char nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
 	uint32_t salt = 0;
 
+	//Stores the save file format number allowing for backward compatibility with previous save file formats
+	uint32_t version = 0;
+
+	//Stores the current version number for the application
+	const uint32_t currentVersion = 5;
+
 	//Stores the passphrase that the user used to decrypt their passwords file
 	string passphrase = "";
 
@@ -58,14 +64,34 @@ int main(int argc, char* argv[]) {
 	}
 	else { //Passwords file was found and opened. Read and decrypt its contents.
 
-		//Read the salt and nonce values from the beginning of the file
-		passwordsFile.read((char *)&salt, sizeof(uint32_t));
-		passwordsFile.read((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+		//Read the version number from the beginning of the file to know the what the format is like for the rest of the file
+		passwordsFile.read((char *)&version, sizeof(uint32_t));
 
-		//Everything remaining in the file is cyphertext. Read it all into encryptedPasswordsData.
+		//Create a string to store the cyphertext
 		string encryptedPasswordsData;
-		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
-			(istreambuf_iterator<char>()));
+
+		if (version >= 5 && version <= currentVersion) { //If this file was created with the file format for version 1.5 - currentVersion
+
+			//Read the salt and nonce values from the file
+			passwordsFile.read((char *)&salt, sizeof(uint32_t));
+			passwordsFile.read((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+
+			//Everything remaining in the file is cyphertext. Read it all into encryptedPasswordsData.
+			encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
+				(istreambuf_iterator<char>()));
+
+		}
+		else { //This application does not support the provided version number
+			if (version > currentVersion) {
+				cout << "Error: " << nameOfPasswords << " was encoded with a newer file format than this application supports." << endl
+					<< "Please download version 1." << version << " or higher to open this file." << endl;
+			}
+			else {
+				cout << "Error: unknown file format number. Your passwords file might have gotten corrupted. Halting." << endl;
+			}
+			passwordsFile.close();
+			return 1;
+		}
 
 		passwordsFile.close();
 		
@@ -77,11 +103,11 @@ int main(int argc, char* argv[]) {
 		randombytes_buf(&salt, sizeof(uint32_t));
 
 		//Construct the password database from the information stored in decrypted
-		db = PasswordDatabase(decrypted);
+		db = PasswordDatabase(decrypted, version);
 	}
 	
 	cout << endl;
-	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.4";
+	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1."+to_string(currentVersion);
 	printBox(greeting);
 	cout << endl;
 
@@ -144,7 +170,7 @@ int main(int argc, char* argv[]) {
 		case 5:
 			//Do we have enough entries to save the database?
 			if (db.getLabels().size() > 0) {
-				writeAndEncryptFile(db, salt, nonce, passphrase, nameOfPasswords);
+				writeAndEncryptFile(db, currentVersion, salt, nonce, passphrase, nameOfPasswords);
 			}
 			else {
 				cout << "Exiting without saving..." << endl;
