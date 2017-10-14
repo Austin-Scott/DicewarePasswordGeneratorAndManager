@@ -21,7 +21,7 @@ uint32_t generateNewKey(std::string name);
 int getRandomNumberFromDie(int max);
 uint32_t getKeyFromUser();
 std::string getPassphraseFromUser();
-std::string decryptFile(PasswordDatabase &db, uint32_t &key, std::string &passphrase, uint32_t salt, std::string hash, std::string encryptedData);
-void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, std::string passphrase, std::string filename);
-void changeKeyPass(PasswordDatabase &db, uint32_t &salt, uint32_t &key, std::string &passphrase, std::vector<std::string> &wordlist);
+std::string decryptFile(PasswordDatabase &db, std::string &passphrase, uint32_t salt, unsigned char* nonce, std::string encryptedData);
+void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename);
+void changeKeyPass(PasswordDatabase &db, uint32_t &salt, std::string &passphrase, std::vector<std::string> &wordlist);
 

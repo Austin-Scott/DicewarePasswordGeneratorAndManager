@@ -208,10 +208,10 @@ uint32_t generateNewKey(std::string name) {
 
 	if (selection == 1) {
 
-		std::cout << "Getting key from TRNG..." << std::endl;
+		std::cout << "Getting "<<name<<" from TRNG..." << std::endl;
 		std::uniform_int_distribution<uint32_t> dist(0U, 4294967295U);
 		result = dist(rd);
-		std::cout << "...Key retrieved." << std::endl;
+		std::cout << "..."<<name<<" retrieved." << std::endl;
 
 	}
 	else if (selection == 2) {
@@ -239,9 +239,9 @@ uint32_t generateNewKey(std::string name) {
 		result = getKeyFromUser();
 	}
 	else {
-		std::cout << "Getting key from current system time..." << std::endl;
+		std::cout << "Getting "<<name<<" from current system time..." << std::endl;
 		result = time(NULL);
-		std::cout << "...key retrieved." << std::endl;
+		std::cout << "..."<<name<<" retrieved." << std::endl;
 	}
 
 	return result;
@@ -368,32 +368,26 @@ std::string getPassphraseFromUser() {
 	return result;
 }
 
-std::string decryptFile(PasswordDatabase & db, uint32_t & key, std::string & passphrase, uint32_t salt, std::string hash, std::string encryptedData) {
+std::string decryptFile(PasswordDatabase &db, std::string &passphrase, uint32_t salt, unsigned char* nonce, std::string encryptedData) {
 	std::string result = "";
-	std::string saltedResult = "";
 
 	bool stillEncrypted = true;
 	while (stillEncrypted) {
-		key = getKeyFromUser();
 		passphrase = getPassphraseFromUser();
 		std::cout << "Decrypting file..." << std::endl;
-		result = encryptDecrypt(encryptedData, salt, key, passphrase);
-
-		saltedResult = saltString(result, salt);
-
-
-		if (hash == hashString(saltedResult)) {
+		
+		if (decryptString(encryptedData, result, salt, nonce, passphrase)) {
 			stillEncrypted = false; //success
 		}
 		else {
-			std::cout << "Error: incorrect key or passphrase. Please try again." << std::endl;
+			std::cout << "Error: incorrect passphrase. Please try again." << std::endl;
 		}
 	}
 	std::cout << "Decryption successful." << std::endl;
 	return result;
 }
 
-void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, std::string passphrase, std::string filename) {
+void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonce, std::string passphrase, std::string filename) {
 	std::cout << "Saving and encrypting file..." << std::endl;
 
 	std::string data = "";
@@ -406,37 +400,26 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t key, uint32_t salt, std::
 		if (i != db.getLabels().size() - 1) data += "\n";
 	}
 
-	std::string saltedData = saltString(data, salt);
-	std::string hash = hashString(saltedData);
-
-	data = encryptDecrypt(data, salt, key, passphrase);
+	data = encryptString(data, salt, nonce, passphrase);
 
 	ofstream passwordFile(filename, ofstream::out | ofstream::binary);
 
 	passwordFile.write((char *)&salt, sizeof(uint32_t));
-	passwordFile.write(hash.c_str(), sizeof(char) * 32);
+	passwordFile.write((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 	passwordFile.write(data.c_str(), sizeof(char)*data.size());
 	passwordFile.close();
 
 	std::cout << "Done. " << std::endl;
 }
 
-void changeKeyPass(PasswordDatabase & db, uint32_t & salt, uint32_t & key, std::string & passphrase, std::vector<std::string>& wordlist) {
+void changeKeyPass(PasswordDatabase & db, uint32_t & salt, std::string & passphrase, std::vector<std::string>& wordlist) {
 	while (true) {
-		std::cout << "Password database options:\n\t1. Change key.\n\t2. Change passphrase.\n\t3. Change salt.\n\t4. Cancel." << std::endl << std::endl;
+		std::cout << "Password database options:\n\t1. Change passphrase.\n\t2. Cancel." << std::endl << std::endl;
 		int choice = 0;
 		std::cout << "Enter selection>";
 		std::cin >> choice;
 		flushCin();
 		if (choice == 1) {
-			std::cout << "Changing key..." << std::endl;
-			key = generateNewKey("key");
-			std::cout << "Your new key is: " + toHex(key) << std::endl;
-			std::cout << "Do not lose this!!" << std::endl;
-			db.flagUnsavedChanges();
-			break;
-		}
-		else if (choice == 2) {
 			std::cout << "Changing passphrase..." << std::endl;
 			passphrase = generatePassphrase(wordlist);
 			std::cout << "Passphrase changed! Do not lose this: \n"
@@ -444,14 +427,7 @@ void changeKeyPass(PasswordDatabase & db, uint32_t & salt, uint32_t & key, std::
 			db.flagUnsavedChanges();
 			break;
 		}
-		else if (choice == 3) {
-			std::cout << "Changing salt..." << std::endl;
-			salt = generateNewKey("salt");
-			std::cout << "Salt changed!" << std::endl;
-			break;
-
-		}
-		else if (choice == 4) {
+		else if (choice == 2) {
 			break;
 		}
 		else {

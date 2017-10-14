@@ -18,6 +18,47 @@ string encryptDecrypt(string data, uint32_t salt, uint32_t key, string passphras
 	return result;
 }
 
+std::string encryptString(std::string message, uint32_t salt, const unsigned char *npub, std::string passphrase)
+{
+	std::string saltedPassphrase = saltString(passphrase, salt);
+	std::string secretKey = hashString(saltedPassphrase);
+	unsigned long long mlen = message.length();
+	unsigned long long clen = 0;
+	unsigned char* cipertext = new unsigned char[mlen + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+
+	crypto_aead_xchacha20poly1305_ietf_encrypt(cipertext, &clen, (const unsigned char*)message.c_str(), mlen, NULL, 0, NULL, npub, (unsigned char*)secretKey.c_str());
+
+	std::string result = std::string((const char*)cipertext, clen);
+
+	delete[] cipertext;
+
+	return result;
+}
+
+bool decryptString(std::string ciphertext, std::string & message, uint32_t salt, const unsigned char *npub, std::string passphrase)
+{
+	std::string saltedPassphrase = saltString(passphrase, salt);
+	std::string secretKey = hashString(saltedPassphrase);
+	unsigned long long clen = ciphertext.length();
+	unsigned char* m = new unsigned char[clen - crypto_aead_xchacha20poly1305_ietf_ABYTES];
+	unsigned long long mlen = 0;
+	bool result;
+
+	if (crypto_aead_xchacha20poly1305_ietf_decrypt(m, &mlen, NULL, (unsigned char*)ciphertext.c_str(), clen, NULL, 0, npub, (unsigned char*)secretKey.c_str()) == 0) {
+		//Success!
+		message = std::string((char *)m, mlen);
+		result = true;
+	}
+	else {
+		//Failed
+		result = false;
+	}
+
+	delete[] m;
+	
+	return result;
+}
+
 string saltString(string str, uint32_t salt)
 {
 	string result = str;

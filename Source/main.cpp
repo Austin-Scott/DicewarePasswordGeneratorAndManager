@@ -4,7 +4,9 @@
 #include <string>
 #include <cstdint>
 
-#include "picosha2.h"
+#define SODIUM_STATIC 1
+#define SODIUM_EXPORT
+#include <sodium.h>
 
 #include "PasswordDatabase.h"
 #include "Utils.h"
@@ -15,6 +17,11 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
 
+	if (sodium_init() < 0) {
+		cout << "Error: Unable to initialize libsodium. Halting." << endl;
+		return 2;
+	}
+
 	string nameOfWordList = "wordlist.txt";
 	string nameOfPasswords = "passwords.txt";
 
@@ -22,7 +29,7 @@ int main(int argc, char* argv[]) {
 	string encryptedPasswordsData;
 
 	PasswordDatabase db;
-	uint32_t key = 0;
+	unsigned char nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
 	uint32_t salt = 0;
 	string passphrase = "";
 
@@ -47,7 +54,7 @@ int main(int argc, char* argv[]) {
 	wordListFile.open(nameOfWordList);
 	if (!wordListFile) {
 		cout << "Error: enable to open \"" + nameOfWordList + "\". Halting." << endl;
-		return 0;
+		return 1;
 	} 
 	while (!wordListFile.eof()) {
 		string word="";
@@ -62,22 +69,18 @@ int main(int argc, char* argv[]) {
 	if (!passwordsFile) {
 		cout << "Unable to open passwords file. Entering first time setup." << endl;
 
-		cout << "Creating random salt..." << endl;
-		salt = generateNewKey("salt");
+		randombytes_buf(nonce, sizeof(nonce));
 
-		cout << "Done creating random salt. Creating key..." << endl;
-		key = generateNewKey("key");
+		randombytes_buf(&salt, sizeof(uint32_t));
 
-		cout << "Done creating key. Creating passphrase..." << endl;
+		cout << "Creating passphrase..." << endl;
 		passphrase = generatePassphrase(wordlist);
 		cout << "Passphrase created." << endl
-			<< endl << "-----------------------------" << endl
-			<< "KEY: " << setw(8) << setfill('0') << right << hex << key << endl;
-		cout << dec;
+			<< endl << "-----------------------------" << endl;
 		cout<< "PASSPHRASE: " << passphrase << endl
 			<< "-----------------------------" << endl << endl
-			<< "***NOTE: These are required to access your passwords." << endl
-			<< "Recovery of any password is not possible if you lose these." << endl
+			<< "***NOTE: This is required to access your passwords." << endl
+			<< "Recovery of any password is not possible if you lose this." << endl
 			<< "Type \"yes\" if you acknowledge this notice>";
 
 		flushCin();
@@ -95,27 +98,28 @@ int main(int argc, char* argv[]) {
 	else {
 		passwordsFile.read((char *)&salt, sizeof(uint32_t));
 
-		char rawHash[32];
-		passwordsFile.read(rawHash, sizeof(char)*32);
-		string hash = "";
-		for (int i = 0; i < 32; i++) hash += rawHash[i];
+		passwordsFile.read((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 
 		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
 			(istreambuf_iterator<char>()));
 
-		string decrypted=decryptFile(db, key, passphrase, salt, hash, encryptedPasswordsData);
+		string decrypted = decryptFile(db, passphrase, salt, nonce, encryptedPasswordsData);
 		passwordsFile.close();
+
+		randombytes_buf(nonce, sizeof(nonce));
+		randombytes_buf(&salt, sizeof(uint32_t));
+
 		db = PasswordDatabase(decrypted);
 	}
 	
 	cout << endl;
-	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.3";
+	string greeting = "Welcome to diceware password generator and manager!\nSoftware by Metgame (Austin Scott) V1.4";
 	printBox(greeting);
 	cout << endl;
 
 	bool keeplooping = true;
 	while (keeplooping) {
-		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database key/passphrase.\n\t5. ";
+		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database passphrase.\n\t5. ";
 		if (db.getLabels().size() > 0) {
 			cout << "Save and ";
 		}
@@ -151,11 +155,11 @@ int main(int argc, char* argv[]) {
 			db.editEntry(selection, wordlist);
 			break;
 		case 4:
-			changeKeyPass(db, salt, key, passphrase, wordlist);
+			changeKeyPass(db, salt, passphrase, wordlist);
 			break;
 		case 5:
 			if (db.getLabels().size() > 0) {
-				writeAndEncryptFile(db, key, salt, passphrase, nameOfPasswords);
+				writeAndEncryptFile(db, salt, nonce, passphrase, nameOfPasswords);
 			}
 			else {
 				cout << "Exiting without saving..." << endl;
