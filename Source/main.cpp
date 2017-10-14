@@ -22,93 +22,61 @@ int main(int argc, char* argv[]) {
 		return 2;
 	}
 
+	//Stores the name of the wordlist text file
 	string nameOfWordList = "wordlist.txt";
+
+	//Stores the name of the file where passwords are saved to
 	string nameOfPasswords = "passwords.txt";
 
+	//Stores the wordlist used for generating new diceware passphrases
 	vector<string> wordlist;
-	string encryptedPasswordsData;
 
+	//Object for storing and managing all password data
 	PasswordDatabase db;
+
+	//Both of these are used with the encryption functions to prevent adversaries from precomputing solutions
 	unsigned char nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
 	uint32_t salt = 0;
+
+	//Stores the passphrase that the user used to decrypt their passwords file
 	string passphrase = "";
 
-	if (argc == 1) {
-		//use default file names and locations
-	}
-	else if(argc==3)  {
-		nameOfWordList = argv[1];
-		nameOfPasswords = argv[2];
-	}
-	else {
-		//illegal number of arguments. Display help and halt.
-		cout << "Illegal number of cmd-line arguments. Correct usage:" << endl << endl
-			<< argv[0] << endl
-			<< "\tStarts the program with default wordlist and password filenames/locations." << endl
-			<< "\tThe default files are: \"" + nameOfWordList + "\" and \"" + nameOfPasswords + "\"." << endl
-			<< argv[0] << " [Path to wordlist] [Path to passwords]" << endl;
-		return 0;
-	}
+	if (!parseCmdArguments(argc, argv, nameOfWordList, nameOfPasswords)) return 0;
 
-	ifstream wordListFile;
-	wordListFile.open(nameOfWordList);
-	if (!wordListFile) {
-		cout << "Error: enable to open \"" + nameOfWordList + "\". Halting." << endl;
-		return 1;
-	} 
-	while (!wordListFile.eof()) {
-		string word="";
-		getline(wordListFile, word, '\n');
-		wordlist.push_back(word);
-	}
-	wordListFile.close();
+	if (!loadWordlist(nameOfWordList, wordlist)) return 1;
 
 	ifstream passwordsFile;
 	passwordsFile.open(nameOfPasswords, ios::binary);
 
-	if (!passwordsFile) {
-		cout << "Unable to open passwords file. Entering first time setup." << endl;
+	if (!passwordsFile) { //If the passwords file wasn't found perform first time setup
 
+		//Set the nonce and the salt to random values
 		randombytes_buf(nonce, sizeof(nonce));
-
 		randombytes_buf(&salt, sizeof(uint32_t));
 
-		cout << "Creating passphrase..." << endl;
-		passphrase = generatePassphrase(wordlist);
-		cout << "Passphrase created." << endl
-			<< endl << "-----------------------------" << endl;
-		cout<< "PASSPHRASE: " << passphrase << endl
-			<< "-----------------------------" << endl << endl
-			<< "***NOTE: This is required to access your passwords." << endl
-			<< "Recovery of any password is not possible if you lose this." << endl
-			<< "Type \"yes\" if you acknowledge this notice>";
-
-		flushCin();
-		while (true) {
-			string input = "";
-			getline(cin, input);
-			if (input == "yes") break;
-			cout << "You must type \"yes\" and agree to the notice to continue using this software." << endl
-				<< "Type \"yes\" if you acknowledge this notice: ";
-		}
-		//We must have at least one entry in the database before we save it now
-		//writeAndEncryptFile(db, key, salt, passphrase, nameOfPasswords);
-		cout << "Password database created." << endl;
+		firstTimeSetup(passphrase, wordlist);
 	}
-	else {
-		passwordsFile.read((char *)&salt, sizeof(uint32_t));
+	else { //Passwords file was found and opened. Read and decrypt its contents.
 
+		//Read the salt and nonce values from the beginning of the file
+		passwordsFile.read((char *)&salt, sizeof(uint32_t));
 		passwordsFile.read((char *)nonce, sizeof(char)*crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 
+		//Everything remaining in the file is cyphertext. Read it all into encryptedPasswordsData.
+		string encryptedPasswordsData;
 		encryptedPasswordsData.assign((istreambuf_iterator<char>(passwordsFile)),
 			(istreambuf_iterator<char>()));
 
-		string decrypted = decryptFile(db, passphrase, salt, nonce, encryptedPasswordsData);
 		passwordsFile.close();
-
+		
+		//decryptFile() will only return a string once the user has entered the correct passphrase and the cyphertext has been decoded
+		string decrypted = decryptFile(db, passphrase, salt, nonce, encryptedPasswordsData);
+		
+		//Set the nonce and the salt to random values
 		randombytes_buf(nonce, sizeof(nonce));
 		randombytes_buf(&salt, sizeof(uint32_t));
 
+		//Construct the password database from the information stored in decrypted
 		db = PasswordDatabase(decrypted);
 	}
 	
@@ -120,6 +88,8 @@ int main(int argc, char* argv[]) {
 	bool keeplooping = true;
 	while (keeplooping) {
 		cout << "Menu:\n\t1. Add new passphrase.\n\t2. View existing passphrase.\n\t3. Edit existing passphrases.\n\t4. Edit database passphrase.\n\t5. ";
+
+		//The password database has entries and hence can be saved. Label this menu option "Save and Quit" instead of just "Quit"
 		if (db.getLabels().size() > 0) {
 			cout << "Save and ";
 		}
@@ -131,33 +101,48 @@ int main(int argc, char* argv[]) {
 		else if (db.hasUnsavedChanges()) {
 			cout << "***WARNING: You have unsaved changes." << endl;
 		}
-		
 		else {
 			cout << endl;
 		}
+
 		int choice = 0;
 		cout << "Choose option>";
 		cin >> choice;
+
+		//Selection is used whenever a choosen option requires performing an action to a specific entry in the database. Selection then stores the corresponding id.
 		int selection = 0;
+
 		flushCin();
+
 		switch (choice) {
 		case 1:
 			db.addNewPassphrase(wordlist);
 			break;
+
 		case 2:
 			selection = searchForEntry(db);
+
+			//If user canceled the search for an item break
 			if (selection == -1) break;
+
 			db.printEntry(selection);
 			break;
+
 		case 3:
 			selection = searchForEntry(db);
+
+			//If user canceled the search for an item break
 			if (selection == -1) break;
+
 			db.editEntry(selection, wordlist);
 			break;
+
 		case 4:
-			changeKeyPass(db, salt, passphrase, wordlist);
+			changePassphrase(db, salt, passphrase, wordlist);
 			break;
+
 		case 5:
+			//Do we have enough entries to save the database?
 			if (db.getLabels().size() > 0) {
 				writeAndEncryptFile(db, salt, nonce, passphrase, nameOfPasswords);
 			}
@@ -166,8 +151,10 @@ int main(int argc, char* argv[]) {
 			}
 			keeplooping = false;
 			break;
+
 		default:
 			cout << "Error: invalid choice. Please choose again." << endl;
+
 		}
 	}
 

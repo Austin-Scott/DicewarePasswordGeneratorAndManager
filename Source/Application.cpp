@@ -412,7 +412,7 @@ void writeAndEncryptFile(PasswordDatabase db, uint32_t salt, unsigned char* nonc
 	std::cout << "Done. " << std::endl;
 }
 
-void changeKeyPass(PasswordDatabase & db, uint32_t & salt, std::string & passphrase, std::vector<std::string>& wordlist) {
+void changePassphrase(PasswordDatabase & db, uint32_t & salt, std::string & passphrase, std::vector<std::string>& wordlist) {
 	while (true) {
 		std::cout << "Password database options:\n\t1. Change passphrase.\n\t2. Cancel." << std::endl << std::endl;
 		int choice = 0;
@@ -434,4 +434,69 @@ void changeKeyPass(PasswordDatabase & db, uint32_t & salt, std::string & passphr
 			std::cout << "Error: invalid choice. Please try again." << std::endl;
 		}
 	}
+}
+
+bool parseCmdArguments(int argc, char ** argv, std::string & nameOfWordList, std::string & nameOfPasswords)
+{
+	if (argc == 1) {
+		//use default file names and locations
+	}
+	else if (argc == 3) {
+		nameOfWordList = argv[1];
+		nameOfPasswords = argv[2];
+	}
+	else {
+		//illegal number of arguments. Display help and halt.
+		std::cout << "Illegal number of cmd-line arguments. Correct usage:" << std::endl << endl
+			<< argv[0] << std::endl
+			<< "\tStarts the program with default wordlist and password filenames/locations." << std::endl
+			<< "\tThe default files are: \"" + nameOfWordList + "\" and \"" + nameOfPasswords + "\"." << std::endl
+			<< argv[0] << " [Path to wordlist] [Path to passwords]" << std::endl;
+		return false;
+	}
+	return true;
+}
+
+bool loadWordlist(std::string nameOfWordList, std::vector<std::string>& wordlist)
+{
+	ifstream wordListFile;
+	wordListFile.open(nameOfWordList);
+	if (!wordListFile) {
+		std::cout << "Error: enable to open \"" + nameOfWordList + "\". Halting." << std::endl;
+		return false;
+	}
+	while (!wordListFile.eof()) {
+		string word = "";
+		getline(wordListFile, word, '\n');
+		wordlist.push_back(word);
+	}
+	wordListFile.close();
+
+	return true;
+}
+
+void firstTimeSetup(std::string & passphrase, std::vector<std::string> &wordlist)
+{
+	std::cout << "Unable to open passwords file. Entering first time setup." << std::endl;
+
+	std::cout << "Creating passphrase..." << std::endl;
+	passphrase = generatePassphrase(wordlist);
+	std::cout << "Passphrase created." << std::endl
+		<< std::endl << "-----------------------------" << std::endl;
+	std::cout << "PASSPHRASE: " << passphrase << std::endl
+		<< "-----------------------------" << std::endl << std::endl
+		<< "***NOTE: This is required to access your passwords." << std::endl
+		<< "Recovery of any password is not possible if you lose this." << std::endl
+		<< "Type \"yes\" if you acknowledge this notice>";
+
+	flushCin();
+	while (true) {
+		std::string input = "";
+		getline(cin, input);
+		if (input == "yes") break;
+		std::cout << "You must type \"yes\" and agree to the notice to continue using this software." << std::endl
+			<< "Type \"yes\" if you acknowledge this notice: ";
+	}
+	//We must have at least one entry in the database before we save it now
+	std::cout << "Password database created." << std::endl;
 }
